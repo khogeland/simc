@@ -4368,8 +4368,11 @@ struct frozen_orb_t : public frost_mage_spell_t
 
 struct glacial_spike_t : public frost_mage_spell_t
 {
+  double icicle_damage;
+
   glacial_spike_t( mage_t* p, const std::string& options_str ) :
-    frost_mage_spell_t( "glacial_spike", p, p -> talents.glacial_spike )
+    frost_mage_spell_t( "glacial_spike", p, p -> talents.glacial_spike ),
+    icicle_damage( 0.0 )
   {
     parse_options( options_str );
     parse_effect_data( p -> find_spell( 228600 ) -> effectN( 1 ) );
@@ -4392,9 +4395,45 @@ struct glacial_spike_t : public frost_mage_spell_t
     return frost_mage_spell_t::ready();
   }
 
+  virtual double calculate_direct_amount( action_state_t* s ) const override
+  {
+    if ( cast_state( s ) -> impact_override )
+    {
+      double base_amount = mage_spell_t::calculate_direct_amount( s );
+      double icicle_amount = icicle_damage;
+
+      // Icicle portion is only affected by target-based damage multipliers.
+      icicle_amount *= s -> target_da_multiplier;
+
+      if ( s -> chain_target > 0 )
+        icicle_amount *= base_aoe_multiplier;
+
+      double amount = base_amount + icicle_amount;
+      s -> result_raw = amount;
+
+      if ( result_is_miss( s -> result ) )
+      {
+        s -> result_total = 0.0;
+        return 0.0;
+      }
+      else
+      {
+        s -> result_total = amount;
+        return amount;
+      }
+    }
+    else
+    {
+      return s -> result_amount;
+    }
+  }
+
   virtual void execute() override
   {
-    double icicle_damage = 0.0;
+    // Ideally, this would be passed to impact() in action_state_t, but since
+    // it's pretty much impossible to execute another Glacial Spike before
+    // the first one impacts, this should be fine.
+    icicle_damage = 0.0;
     int icicle_count = as<int>( p() -> icicles.size() );
 
     for ( int i = 0; i < icicle_count; i++ )
@@ -4408,11 +4447,6 @@ struct glacial_spike_t : public frost_mage_spell_t
       sim -> out_debug.printf( "Add %u icicles to glacial_spike for %f damage",
                                icicle_count, icicle_damage );
     }
-
-    // Ideally, this would be passed to impact() in action_state_t, but since
-    // it's pretty much impossible to execute another Glacial Spike before
-    // the first one impacts, this should be fine.
-    base_dd_adder = icicle_damage;
 
     frost_mage_spell_t::execute();
 
