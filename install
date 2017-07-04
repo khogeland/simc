@@ -56,7 +56,7 @@ echo Creating Desktop file at ~/.local/share/applications
 cat <<EOF >~/.local/share/applications/SimulationCraft.desktop
 [Desktop Entry]
 Name=SimulationCraft
-Exec=$INSTALLPATH/SimulationCraft
+Exec=/usr/local/bin/SimulationCraft
 Icon=$INSTALLPATH/SimulationCraft.xpm
 Path=$INSTALLPATH
 Terminal=false
